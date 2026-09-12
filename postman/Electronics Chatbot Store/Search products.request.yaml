@@ -1,0 +1,4 @@
+$kind: http-request
+url: "{{baseUrl}}/products?search=laptop&category=Laptops"
+method: GET
+order: 3000

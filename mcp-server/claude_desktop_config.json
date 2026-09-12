@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "electronics-store": {
+      "command": "python",
+      "args": ["C:/ABSOLUTE/PATH/electronics-chatbot-store/mcp-server/mcp_server.py"],
+      "env": {
+        "STORE_API_URL": "http://localhost:8000",
+        "STORE_ADMIN_API_KEY": "change-this-admin-key"
+      }
+    }
+  }
+}
+

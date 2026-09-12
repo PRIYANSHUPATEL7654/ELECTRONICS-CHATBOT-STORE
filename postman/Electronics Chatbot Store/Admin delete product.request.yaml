@@ -1,0 +1,6 @@
+$kind: http-request
+url: "{{baseUrl}}/products/51"
+method: DELETE
+headers:
+  X-Admin-Key: "{{adminKey}}"
+order: 9000

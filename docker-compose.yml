@@ -1,0 +1,15 @@
+services:
+  backend:
+    build: ./backend
+    ports: ["8000:8000"]
+    environment:
+      DATABASE_URL: sqlite:///./electronics_store.db
+      ADMIN_API_KEY: change-this-admin-key
+    volumes: ["store-data:/app"]
+  frontend:
+    build: ./frontend
+    ports: ["8080:80"]
+    depends_on: [backend]
+volumes:
+  store-data:
+

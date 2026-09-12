@@ -1,0 +1,10 @@
+$kind: http-request
+url: "{{baseUrl}}/products/1"
+method: PUT
+headers:
+  X-Admin-Key: "{{adminKey}}"
+  Content-Type: application/json
+body:
+  type: text
+  content: '{"stock": 25}'
+order: 8000

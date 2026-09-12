@@ -1,0 +1,6 @@
+$kind: http-request
+url: "{{baseUrl}}/orders"
+method: GET
+headers:
+  X-Admin-Key: "{{adminKey}}"
+order: 10000

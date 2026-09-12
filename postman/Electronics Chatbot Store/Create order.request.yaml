@@ -1,0 +1,15 @@
+$kind: http-request
+url: "{{baseUrl}}/orders"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "customer_name": "Priyanshu Patel",
+      "customer_email": "priyanshu@example.com",
+      "customer_address": "Ahmedabad, Gujarat",
+      "items": [{"product_id": 1, "quantity": 1}]
+    }
+order: 6000

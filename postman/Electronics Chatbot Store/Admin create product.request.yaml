@@ -1,0 +1,18 @@
+$kind: http-request
+url: "{{baseUrl}}/products"
+method: POST
+headers:
+  X-Admin-Key: "{{adminKey}}"
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "name": "Demo USB Hub",
+      "description": "A compact USB-C hub for laptops.",
+      "price": 1999,
+      "category": "Accessories",
+      "stock": 10,
+      "image_url": "https://images.unsplash.com/photo-1625842268584-8f3296236761?w=900&q=80"
+    }
+order: 7000
