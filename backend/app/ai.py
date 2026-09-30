@@ -1,4 +1,5 @@
 import json
+import re
 from typing import Any
 
 from sqlalchemy import select
@@ -16,19 +17,19 @@ TOOLS = [
         "parameters": {
             "type": "object",
             "properties": {
-                "query": {"type": "string", "description": "Important product name, feature, or use-case words, such as coding, gaming, ANC, camera, or student."},
-                "category": {"type": "string", "description": "Product category, if known: Phones, Laptops, Headphones, Earbuds, Smartwatches, Cameras, or Accessories."},
-                "max_price": {"type": "number", "description": "Maximum price in Indian rupees, if the user gives a budget."},
-                "min_stock": {"type": "integer", "description": "Minimum stock quantity, usually 1 when the user asks for available products."},
+                "query": {"type": "string"},
+                "category": {"type": "string"},
+                "max_price": {"type": "number"},
+                "min_stock": {"type": "integer"},
                 "sort_by": {"type": "string", "enum": ["relevance", "price_asc", "price_desc", "stock_desc"]},
-                "limit": {"type": "integer", "description": "Number of results, from 1 to 6."},
+                "limit": {"type": "integer"},
             },
         },
     },
     {
         "type": "function",
         "name": "get_product",
-        "description": "Retrieve the complete record for one product when the user asks about a named product or product ID.",
+        "description": "Retrieve the complete record for one named product or product ID.",
         "parameters": {"type": "object", "properties": {"product_id": {"type": "integer"}, "product_name": {"type": "string"}}},
     },
     {
@@ -40,52 +41,94 @@ TOOLS = [
 ]
 
 
+CATEGORY_ALIASES = {
+    "phone": "Phones", "phones": "Phones", "mobile": "Phones", "mobiles": "Phones",
+    "smartphone": "Phones", "smartphones": "Phones", "laptop": "Laptops", "laptops": "Laptops",
+    "headphone": "Headphones", "headphones": "Headphones", "earbud": "Earbuds", "earbuds": "Earbuds",
+    "smartwatch": "Smartwatches", "smartwatches": "Smartwatches", "smart watch": "Smartwatches",
+    "smart watches": "Smartwatches", "camera": "Cameras", "cameras": "Cameras",
+    "accessory": "Accessories", "accessories": "Accessories",
+}
+
+
+def detect_category(message: str) -> str | None:
+    normalized = message.lower()
+    for alias, category in sorted(CATEGORY_ALIASES.items(), key=lambda item: len(item[0]), reverse=True):
+        if re.search(rf"(?<![a-z]){re.escape(alias)}(?![a-z])", normalized):
+            return category
+    return None
+
+
 def product_dict(product: Product) -> dict[str, Any]:
-    return {"id": product.id, "name": product.name, "description": product.description, "price": product.price, "category": product.category, "stock": product.stock, "image_url": product.image_url}
+    return {
+        "id": product.id,
+        "name": product.name,
+        "description": product.description,
+        "price": product.price,
+        "category": product.category,
+        "stock": product.stock,
+        "image_url": product.image_url,
+    }
 
 
-def search_products(db: Session, query: str = "", category: str | None = None, max_price: float | None = None, min_stock: int | None = None, sort_by: str = "relevance", limit: int = 6) -> list[dict[str, Any]]:
-    query = query or ""
-    limit = int(limit or 6)
+def search_products(
+    db: Session,
+    query: str = "",
+    category: str | None = None,
+    max_price: float | None = None,
+    min_stock: int | None = None,
+    sort_by: str = "relevance",
+    limit: int = 6,
+) -> list[dict[str, Any]]:
     products = list(db.scalars(select(Product)).all())
     if category:
-        products = [p for p in products if p.category.lower() == category.lower()]
+        products = [product for product in products if product.category.lower() == category.lower()]
     if max_price is not None:
-        products = [p for p in products if p.price <= max_price]
+        products = [product for product in products if product.price <= max_price]
     if min_stock is not None:
-        products = [p for p in products if p.stock >= min_stock]
-    words = [word for word in query.lower().replace(",", " ").split() if len(word) > 2]
+        products = [product for product in products if product.stock >= min_stock]
+
+    words = [word for word in (query or "").lower().replace(",", " ").split() if len(word) > 2]
 
     def score(product: Product) -> int:
         text = f"{product.name} {product.description} {product.category}".lower()
         return sum(1 for word in words if word in text)
 
     if words:
-        products = [p for p in products if score(p) > 0]
+        products = [product for product in products if score(product) > 0]
     if sort_by == "price_asc":
-        products.sort(key=lambda p: p.price)
+        products.sort(key=lambda product: product.price)
     elif sort_by == "price_desc":
-        products.sort(key=lambda p: p.price, reverse=True)
+        products.sort(key=lambda product: product.price, reverse=True)
     elif sort_by == "stock_desc":
-        products.sort(key=lambda p: p.stock, reverse=True)
+        products.sort(key=lambda product: product.stock, reverse=True)
     else:
-        products.sort(key=lambda p: (-score(p), p.price))
-    return [product_dict(p) for p in products[:max(1, min(limit, 6))]]
+        products.sort(key=lambda product: (-score(product), product.price))
+
+    return [product_dict(product) for product in products[:max(1, min(int(limit or 6), 6))]]
 
 
-def execute_tool(db: Session, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+def execute_tool(db: Session, name: str, arguments: dict[str, Any], user_message: str = "") -> dict[str, Any]:
     if name == "search_products":
-        return {"products": search_products(db, **arguments)}
+        # The user's explicit category always wins over a model guess.
+        search_arguments = dict(arguments)
+        category_hint = detect_category(user_message)
+        if category_hint:
+            search_arguments["category"] = category_hint
+            search_arguments["query"] = ""
+        return {"products": search_products(db, **search_arguments)}
+
     if name == "get_product":
         product_id = arguments.get("product_id")
         product = db.get(Product, int(product_id)) if product_id is not None else None
         if not product and arguments.get("product_name"):
-            matches = search_products(db, query=str(arguments["product_name"]), limit=1)
-            return {"products": matches}
+            return {"products": search_products(db, query=str(arguments["product_name"]), limit=1)}
         return {"products": [product_dict(product)] if product else [], "message": "Product not found" if not product else ""}
+
     if name == "compare_products":
         products = [db.get(Product, product_id) for product_id in arguments.get("product_ids", [])]
         return {"products": [product_dict(product) for product in products if product]}
+
     return {"error": f"Unknown tool: {name}"}
 
 
@@ -106,41 +149,71 @@ def ask_gemini(db: Session, message: str) -> tuple[str, list[int]]:
     client = genai.Client(api_key=settings.gemini_api_key)
     instructions = (
         "You are ElectroChat, a helpful electronics store assistant. "
-        "Answer the user's question using only the results returned by your catalog tools. "
-        "You must call a tool before answering any question about products, prices, stock, comparisons, recommendations, budgets, features, or categories. "
-        "Never invent a product, price, stock count, feature, discount, delivery promise, or order status. "
-        "If the catalog has no matching result, say that clearly and suggest a nearby category. "
-        "Return a concise answer of at most 3 short sentences. Use a small heading if useful. "
-        "Do not write a numbered product list, markdown table, repeated product descriptions, prices, or stock quantities in the text answer; the application renders those records as structured product cards below your message. "
-        "Mention the sorting/filter used and recommend products based on the user's stated purpose. "
-        "Do not expose database implementation details."
+        "Answer using only results returned by catalog tools. Always call a tool for product questions. "
+        "Never invent product facts. Keep the answer concise; the application renders products as cards. "
+        "Do not expose database or API-key configuration details."
     )
-    prompt = f"{instructions}\n\nUser question:\n{message}"
-    interaction = client.interactions.create(model=settings.gemini_model, input=prompt, tools=TOOLS)
+    interaction = client.interactions.create(
+        model=settings.gemini_model,
+        input=f"{instructions}\n\nUser question:\n{message}",
+        tools=TOOLS,
+    )
     ids: list[int] = []
     for _ in range(3):
         calls = [step for step in interaction.steps if step.type == "function_call"]
         if not calls:
             answer = interaction.output_text or "I could not generate an answer."
-            if len(answer) > 500 or answer.count("**") >= 4 or answer.count("\n") > 5:
-                answer = f"I found {len(dict.fromkeys(ids))} matching products. They are shown below as structured cards in the requested order."
+            if len(answer) > 500 or answer.count("\n") > 5:
+                answer = f"I found {len(dict.fromkeys(ids))} matching products. They are shown below as structured cards."
             return answer.strip(), list(dict.fromkeys(ids))
+
         function_results = []
         for call in calls:
             arguments = call.arguments if isinstance(call.arguments, dict) else json.loads(call.arguments or "{}")
-            result = execute_tool(db, call.name, arguments)
+            result = execute_tool(db, call.name, arguments, message)
             collect_product_ids(result, ids)
             function_results.append({"type": "function_result", "name": call.name, "call_id": call.id, "result": [{"type": "text", "text": json.dumps(result)}]})
-        interaction = client.interactions.create(model=settings.gemini_model, previous_interaction_id=interaction.id, tools=TOOLS, input=function_results)
-    return "I found the catalog information, but the answer took too many steps. Please ask the question again.", list(dict.fromkeys(ids))
+        interaction = client.interactions.create(
+            model=settings.gemini_model,
+            previous_interaction_id=interaction.id,
+            tools=TOOLS,
+            input=function_results,
+        )
+
+    return "I found the catalog information, but the answer took too many steps. Please ask again.", list(dict.fromkeys(ids))
 
 
 def answer_with_fallback(db: Session, message: str) -> tuple[str, list[int]]:
-    """Safe no-key fallback. The AI path above is used whenever GEMINI_API_KEY exists."""
-    products = search_products(db, query=message, limit=6)
+    """Answer from the database without exposing Gemini configuration details."""
+    category = detect_category(message)
+    normalized = message.lower()
+    sort_by = "price_desc" if any(term in normalized for term in ("decreasing", "highest price", "most expensive", "expensive first")) else "price_asc" if any(term in normalized for term in ("increasing", "lowest price", "cheapest", "affordable first")) else "relevance"
+    budget_match = re.search(r"(?:under|below|less than|up to|upto|budget of|within)\s*(?:â‚¹|rs\.?\s*)?([\d,]+(?:\.\d+)?)\s*(k)?", normalized)
+    max_price = None
+    if budget_match:
+        max_price = float(budget_match.group(1).replace(",", ""))
+        if budget_match.group(2):
+            max_price *= 1000
+    requires_stock = any(term in normalized for term in ("in stock", "available", "availability"))
+    products = search_products(db, query="" if category else message, category=category, max_price=max_price, min_stock=1 if requires_stock else None, sort_by=sort_by, limit=6)
+
     if not products:
-        products = search_products(db, limit=6)
-    return "I am using catalog search because GEMINI_API_KEY is not configured. Add the key to enable natural-language AI answers.", [p["id"] for p in products]
+        answer = f"I could not find {category.lower() if category else 'products'} matching that request in the current catalog. Try another category, price range, or feature."
+    else:
+        scope = category.lower() if category else "matching products"
+        details = []
+        if max_price is not None:
+            details.append(f"within â‚¹{max_price:,.0f}")
+        if sort_by == "price_desc":
+            details.append("highest price first")
+        elif sort_by == "price_asc":
+            details.append("lowest price first")
+        if requires_stock:
+            details.append("currently in stock")
+        qualifier = f" ({', '.join(details)})" if details else ""
+        answer = f"Here are {scope} from the live catalog{qualifier}. The product cards below contain the exact price, stock, and features."
+
+    return answer, [product["id"] for product in products]
 
 
 def answer_chat(db: Session, message: str) -> tuple[str, list[int]]:
