@@ -43,7 +43,7 @@ class OrderCreate(BaseModel):
     items: list[OrderItemCreate] = Field(min_length=1)
 
 
-# NEW: accepted values for PATCH /orders/{order_id}/status.
+# Body accepted by PATCH /orders/{order_id}/status.
 class OrderStatusUpdate(BaseModel):
     status: Literal["pending", "completed"]
 
