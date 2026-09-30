@@ -1,4 +1,6 @@
 from datetime import datetime
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 class ProductBase(BaseModel):
@@ -32,6 +34,10 @@ class OrderCreate(BaseModel):
     customer_address: str = Field(min_length=5, max_length=300)
     items: list[OrderItemCreate] = Field(min_length=1)
 
+
+class OrderStatusUpdate(BaseModel):
+    status: Literal["pending", "completed"]
+
 class OrderItemRead(BaseModel):
     product_id: int
     product_name: str
@@ -56,4 +62,3 @@ class ChatResponse(BaseModel):
     answer: str
     products: list[ProductRead] = []
     suggestions: list[str] = []
-

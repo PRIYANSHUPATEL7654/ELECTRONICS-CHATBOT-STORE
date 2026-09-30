@@ -1,0 +1,20 @@
+{
+  "info": {"name": "Electronics Chatbot Store", "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"},
+  "variable": [{"key":"baseUrl","value":"http://localhost:8000"},{"key":"adminKey","value":"change-this-admin-key"}],
+  "item": [
+    {"name":"Health","request":{"method":"GET","url":"{{baseUrl}}/health"}},
+    {"name":"List products","request":{"method":"GET","url":"{{baseUrl}}/products"}},
+    {"name":"Search products","request":{"method":"GET","url":"{{baseUrl}}/products?search=laptop&category=Laptops"}},
+    {"name":"Get product 1","request":{"method":"GET","url":"{{baseUrl}}/products/1"}},
+    {"name":"Chat","request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\n  \"message\": \"Show me budget laptops in stock\"\n}"},"url":"{{baseUrl}}/chat"}},
+    {"name":"Create order","request":{"method":"POST","header":[{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\n  \"customer_name\": \"Priyanshu Patel\",\n  \"customer_email\": \"priyanshu@example.com\",\n  \"customer_address\": \"Ahmedabad, Gujarat\",\n  \"items\": [{\"product_id\": 1, \"quantity\": 1}]\n}"},"url":"{{baseUrl}}/orders"}},
+    {"name":"Admin create product","request":{"method":"POST","header":[{"key":"X-Admin-Key","value":"{{adminKey}}"},{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\n  \"name\": \"Demo USB Hub\",\n  \"description\": \"A compact USB-C hub for laptops.\",\n  \"price\": 1999,\n  \"category\": \"Accessories\",\n  \"stock\": 10,\n  \"image_url\": \"https://images.unsplash.com/photo-1625842268584-8f3296236761?w=900&q=80\"\n}"},"url":"{{baseUrl}}/products"}},
+    {"name":"Admin update product","request":{"method":"PUT","header":[{"key":"X-Admin-Key","value":"{{adminKey}}"},{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\"stock\": 25}"},"url":"{{baseUrl}}/products/1"}},
+    {"name":"Admin delete product","request":{"method":"DELETE","header":[{"key":"X-Admin-Key","value":"{{adminKey}}"}],"url":"{{baseUrl}}/products/51"}},
+    {"name":"Admin list orders","request":{"method":"GET","header":[{"key":"X-Admin-Key","value":"{{adminKey}}"}],"url":"{{baseUrl}}/orders"}},
+    {"name":"Admin list pending orders","request":{"method":"GET","header":[{"key":"X-Admin-Key","value":"{{adminKey}}"}],"url":"{{baseUrl}}/orders?status=pending"}},
+    {"name":"Admin mark order completed","request":{"method":"PATCH","header":[{"key":"X-Admin-Key","value":"{{adminKey}}"},{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\n  \"status\": \"completed\"\n}"},"url":"{{baseUrl}}/orders/1/status"}},
+    {"name":"Admin mark order pending","request":{"method":"PATCH","header":[{"key":"X-Admin-Key","value":"{{adminKey}}"},{"key":"Content-Type","value":"application/json"}],"body":{"mode":"raw","raw":"{\n  \"status\": \"pending\"\n}"},"url":"{{baseUrl}}/orders/1/status"}},
+    {"name":"Admin delete order","request":{"method":"DELETE","header":[{"key":"X-Admin-Key","value":"{{adminKey}}"}],"url":"{{baseUrl}}/orders/1"}}
+  ]
+}
