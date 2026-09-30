@@ -3,6 +3,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
+
 class ProductBase(BaseModel):
     name: str = Field(min_length=2, max_length=160)
     description: str = Field(min_length=10)
@@ -11,7 +12,11 @@ class ProductBase(BaseModel):
     stock: int = Field(ge=0)
     image_url: str = Field(min_length=5)
 
-class ProductCreate(ProductBase): pass
+
+class ProductCreate(ProductBase):
+    pass
+
+
 class ProductUpdate(BaseModel):
     name: str | None = Field(None, min_length=2, max_length=160)
     description: str | None = Field(None, min_length=10)
@@ -20,13 +25,16 @@ class ProductUpdate(BaseModel):
     stock: int | None = Field(None, ge=0)
     image_url: str | None = Field(None, min_length=5)
 
+
 class ProductRead(ProductBase):
     id: int
     model_config = ConfigDict(from_attributes=True)
 
+
 class OrderItemCreate(BaseModel):
     product_id: int
     quantity: int = Field(gt=0, le=50)
+
 
 class OrderCreate(BaseModel):
     customer_name: str = Field(min_length=2, max_length=120)
@@ -35,8 +43,10 @@ class OrderCreate(BaseModel):
     items: list[OrderItemCreate] = Field(min_length=1)
 
 
+# NEW: accepted values for PATCH /orders/{order_id}/status.
 class OrderStatusUpdate(BaseModel):
     status: Literal["pending", "completed"]
+
 
 class OrderItemRead(BaseModel):
     product_id: int
@@ -44,6 +54,7 @@ class OrderItemRead(BaseModel):
     quantity: int
     unit_price: float
     subtotal: float
+
 
 class OrderRead(BaseModel):
     id: int
@@ -55,8 +66,10 @@ class OrderRead(BaseModel):
     created_at: datetime
     items: list[OrderItemRead]
 
+
 class ChatRequest(BaseModel):
     message: str = Field(min_length=1, max_length=1000)
+
 
 class ChatResponse(BaseModel):
     answer: str
