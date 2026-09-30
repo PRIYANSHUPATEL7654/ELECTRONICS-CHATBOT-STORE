@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from .database import Base
@@ -22,7 +22,7 @@ class Order(Base):
     customer_address: Mapped[str] = mapped_column(String(300))
     total_amount: Mapped[float] = mapped_column(Float)
     status: Mapped[str] = mapped_column(String(40), default="placed")
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     items: Mapped[list["OrderItem"]] = relationship(back_populates="order", cascade="all, delete-orphan")
 
 class OrderItem(Base):
@@ -34,4 +34,3 @@ class OrderItem(Base):
     unit_price: Mapped[float] = mapped_column(Float)
     order: Mapped[Order] = relationship(back_populates="items")
     product: Mapped[Product] = relationship(back_populates="orders")
-
